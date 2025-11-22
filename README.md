@@ -59,11 +59,11 @@ dmesg | tail
 
 **Write data:**
 ```bash
-echo "Hello" > /dev/charpulse
+echo "Hello1" > /dev/charpulse
 ```
 **Append data:**
 ```bash
-echo " World" >> /dev/charpulse
+echo "Hello2" >> /dev/charpulse
 ```
 **Read data:**
 ```bash
