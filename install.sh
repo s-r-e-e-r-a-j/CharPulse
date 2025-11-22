@@ -35,6 +35,15 @@ sudo udevadm settle --exit-if-exists="${DEV_NODE}" || true
 if [ -e "${DEV_NODE}" ]; then
     echo "[*] Setting permissions 0666 on ${DEV_NODE}..."
     sudo chmod 0666 "${DEV_NODE}"
+    echo "[*] Creating udev rule for permanent permissions..."
+    sudo tee /etc/udev/rules.d/99-${MODULE_BASENAME}.rules > /dev/null <<EOF
+    KERNEL=="${MODULE_BASENAME}", MODE="0666"
+    EOF
+
+    echo "[*] Reloading udev rules..."
+    sudo udevadm control --reload
+    sudo udevadm trigger
+
     echo "[+] ${MODULE_DISPLAY} installed and ${DEV_NODE} is ready (permissions 0666)"
 else
     echo "[!] Warning: ${DEV_NODE} not found. You may need to check dmesg or udev rules."
