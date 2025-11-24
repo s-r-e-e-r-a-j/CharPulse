@@ -1,6 +1,10 @@
 # CharPulse
 
-**CharPulse** is a **Linux character device driver** that supports **read, write, append, and clear** operations on a dynamically resizing kernel buffer. It is safe for multi-threaded access and includes logging for all operations via `dmesg`. This driver is production-ready and can handle large amounts of data, making it suitable for learning as well as realistic kernel module experiments.
+**CharPulse** is a Linux character device driver that supports **read**, **write**, **append**, and **clear** operations on a **dynamically resizing kernel buffer**. It is safe for **multi-threaded access** and includes **logging for all operations via `dmesg`**.  
+
+This driver also provides **sysfs support** to monitor and manage buffer operations, including **read_count**, **write_count**, **clear_count**, **current_data_size**, and **reset_counts** to reset all counters.  
+
+This driver is **production-ready** and can handle **large amounts of data**, making it suitable for **learning** as well as **realistic kernel module experiments**.
 
 ---
 
@@ -14,6 +18,12 @@
 - Dynamic, auto-resizing kernel buffer.
 - Production-ready with logging via `dmesg`.
 - Auto-loads at boot using `/etc/modules-load.d/charpulse.conf`.
+- Sysfs attributes for monitoring and control:
+  - `read_count` – number of times data has been read
+  - `write_count` – number of times data has been written
+  - `clear_count` – number of times the buffer has been cleared
+  - `current_data_size` – current size of the data in the buffer
+  - `reset_counts` – write `1` to reset read, write, and clear counters
 - Works on most Linux distributions with proper kernel headers.
 
 ---
@@ -73,6 +83,38 @@ cat /dev/charpulse
 **Clear buffer:**
 ```bash
 echo "clear" > /dev/charpulse
+```
+### Sysfs Usage
+
+**Read Count**
+
+Check how many times the device has been read:
+```bash
+cat /sys/kernel/charpulse_stats/read_count
+```
+**Write Count**
+
+Check how many times the device has been written to:
+```bash
+cat /sys/kernel/charpulse_stats/write_count
+```
+**Clear Count**
+
+Check how many times the buffer has been cleared:
+```bash
+cat /sys/kernel/charpulse_stats/clear_count
+```
+**Current Data Size**
+
+Check the current size of data stored in the buffer (in bytes):
+```bash
+cat /sys/kernel/charpulse_stats/current_data_size
+```
+**Reset Counts**
+
+Reset read, write, and clear counts to zero (requires sudo/root):
+```bash
+sudo sh -c 'echo 1 > /sys/kernel/charpulse_stats/reset_counts'
 ```
 
 ---
