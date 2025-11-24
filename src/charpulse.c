@@ -2,6 +2,8 @@
 // GitHub: https://github.com/s-r-e-e-r-a-j
 
 #include "../include/charpulse.h"
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 
 static dev_t cp_dev;
 static struct cdev cp_cdev;
@@ -11,6 +13,12 @@ static char *cp_buf;
 static size_t cp_len = 0;
 static size_t buffer_size = CHARPULSE_BUF;
 static DEFINE_MUTEX(cp_lock);
+
+static u64 read_count = 0;
+static u64 write_count = 0;
+static u64 clear_count = 0;
+
+static struct kobject *cp_kobj;
 
 static struct file_operations cp_ops = {
     .owner   = THIS_MODULE,
@@ -33,7 +41,6 @@ int cp_close(struct inode *inode, struct file *file) {
 
 ssize_t cp_read(struct file *file, char __user *out, size_t len, loff_t *off) {
     ssize_t ret = 0;
-
     if (mutex_lock_interruptible(&cp_lock))
         return -EINTR;
 
@@ -41,7 +48,6 @@ ssize_t cp_read(struct file *file, char __user *out, size_t len, loff_t *off) {
         ret = 0;
         goto out;
     }
-
     if (len > cp_len - *off)
         len = cp_len - *off;
 
@@ -52,6 +58,7 @@ ssize_t cp_read(struct file *file, char __user *out, size_t len, loff_t *off) {
 
     *off += len;
     ret = len;
+    read_count++;
 
 out:
     mutex_unlock(&cp_lock);
@@ -84,6 +91,7 @@ ssize_t cp_write(struct file *file, const char __user *in, size_t len, loff_t *o
                 memset(cp_buf, 0, buffer_size);
                 cp_len = 0;
                 *off = 0;
+                clear_count++;
                 mutex_unlock(&cp_lock);
                 printk(KERN_INFO "charpulse: buffer cleared\n");
                 return len;
@@ -123,6 +131,7 @@ ssize_t cp_write(struct file *file, const char __user *in, size_t len, loff_t *o
 
     *off = pos;
     ret = len;
+    write_count++;
 
 out:
     mutex_unlock(&cp_lock);
@@ -133,19 +142,12 @@ out:
 
 loff_t cp_llseek(struct file *file, loff_t off, int whence) {
     loff_t newpos;
-
     mutex_lock(&cp_lock);
 
     switch (whence) {
-        case SEEK_SET:
-            newpos = off;
-            break;
-        case SEEK_CUR:
-            newpos = file->f_pos + off;
-            break;
-        case SEEK_END:
-            newpos = cp_len + off;
-            break;
+        case SEEK_SET: newpos = off; break;
+        case SEEK_CUR: newpos = file->f_pos + off; break;
+        case SEEK_END: newpos = cp_len + off; break;
         default:
             mutex_unlock(&cp_lock);
             return -EINVAL;
@@ -160,6 +162,48 @@ loff_t cp_llseek(struct file *file, loff_t off, int whence) {
     mutex_unlock(&cp_lock);
     return newpos;
 }
+
+static ssize_t read_count_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
+    return sprintf(buf, "%llu\n", read_count);
+}
+
+static ssize_t write_count_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
+    return sprintf(buf, "%llu\n", write_count);
+}
+
+static ssize_t clear_count_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
+    return sprintf(buf, "%llu\n", clear_count);
+}
+
+static ssize_t current_data_size_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
+    return sprintf(buf, "%zu\n", cp_len);
+}
+
+static ssize_t reset_counts_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count) {
+    read_count = 0;
+    write_count = 0;
+    clear_count = 0;
+    return count;
+}
+
+static struct kobj_attribute read_count_attr = __ATTR_RO(read_count);
+static struct kobj_attribute write_count_attr = __ATTR_RO(write_count);
+static struct kobj_attribute clear_count_attr = __ATTR_RO(clear_count);
+static struct kobj_attribute current_data_size_attr = __ATTR_RO(current_data_size);
+static struct kobj_attribute reset_counts_attr = __ATTR_WO(reset_counts);
+
+static struct attribute *cp_attrs[] = {
+    &read_count_attr.attr,
+    &write_count_attr.attr,
+    &clear_count_attr.attr,
+    &current_data_size_attr.attr,
+    &reset_counts_attr.attr,
+    NULL,
+};
+
+static struct attribute_group cp_attr_group = {
+    .attrs = cp_attrs,
+};
 
 int cp_init(void) {
     int ret;
@@ -208,6 +252,14 @@ int cp_init(void) {
     memset(cp_buf, 0, buffer_size);
     cp_len = 0;
 
+    cp_kobj = kobject_create_and_add("charpulse_stats", kernel_kobj);
+    if (!cp_kobj)
+        return -ENOMEM;
+
+    ret = sysfs_create_group(cp_kobj, &cp_attr_group);
+    if (ret)
+        kobject_put(cp_kobj);
+
     printk(KERN_INFO "charpulse: module loaded successfully\n");
     return 0;
 }
@@ -215,6 +267,8 @@ int cp_init(void) {
 void cp_exit(void) {
     printk(KERN_INFO "charpulse: unloading module...\n");
     kfree(cp_buf);
+    if (cp_kobj)
+        kobject_put(cp_kobj);
     device_destroy(cp_class, cp_dev);
     class_destroy(cp_class);
     cdev_del(&cp_cdev);
@@ -227,5 +281,5 @@ module_exit(cp_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sreeraj S Kurup");
-MODULE_DESCRIPTION("CharPulse character device driver with read, write, append, clear, and dynamic buffer resizing support");
+MODULE_DESCRIPTION("CharPulse character device driver with read, write, append, clear, dynamic buffer resizing, and sysfs stats support");
 
