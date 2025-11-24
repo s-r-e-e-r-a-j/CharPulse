@@ -13,7 +13,7 @@ This driver is **production-ready** and can handle **large amounts of data**, ma
 - Read data from the device.
 - Write data to the device.
 - Append data to the existing buffer.
-- Clear contents using `echo "clear" > /dev/charpulse` (buffer is reallocated to initial size)
+- Clear all data using `echo "clear" > /dev/charpulse` (buffer is reallocated to initial size)
 - Thread-safe with mutex protection.
 - Dynamic, auto-resizing kernel buffer.
 - Production-ready with logging via `dmesg`.
@@ -81,7 +81,7 @@ echo "Hello2" >> /dev/charpulse
 cat /dev/charpulse
 ```
 **Clear buffer:**  
-Clears the buffer data and reallocates it to the initial size.  
+Clears all data from the buffer and reallocates it to the initial size. 
 ```bash
 echo "clear" > /dev/charpulse
 ```
