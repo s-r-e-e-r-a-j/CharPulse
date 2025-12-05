@@ -14,6 +14,7 @@ static size_t cp_len = 0;
 static size_t buffer_size = CHARPULSE_BUF;
 static size_t buffer_capacity;
 static DEFINE_MUTEX(cp_lock);
+static DECLARE_WAIT_QUEUE_HEAD(cp_wait);
 
 static u64 read_count = 0;
 static u64 write_count = 0;
@@ -30,6 +31,8 @@ static struct file_operations cp_ops = {
     .read    = cp_read,
     .write   = cp_write,
     .llseek  = cp_llseek,
+    .unlocked_ioctl = cp_ioctl,
+    .poll = cp_poll,
 };
 
 int cp_open(struct inode *inode, struct file *file) {
@@ -97,6 +100,7 @@ ssize_t cp_write(struct file *file, const char __user *in, size_t len, loff_t *o
                 *off = 0;
                 buffer_capacity = buffer_size;
                 clear_count++;
+                wake_up_interruptible(&cp_wait);
                 mutex_unlock(&cp_lock);
                 printk(KERN_INFO "charpulse: buffer cleared\n");
                 return len;
@@ -139,7 +143,7 @@ ssize_t cp_write(struct file *file, const char __user *in, size_t len, loff_t *o
     ret = len;
     last_write_size = len;
     write_count++;
-
+    wake_up_interruptible(&cp_wait);
 out:
     mutex_unlock(&cp_lock);
     printk(KERN_INFO "charpulse: wrote %zd bytes (append=%d)\n",
@@ -168,6 +172,95 @@ loff_t cp_llseek(struct file *file, loff_t off, int whence) {
     file->f_pos = newpos;
     mutex_unlock(&cp_lock);
     return newpos;
+}
+
+unsigned int cp_poll(struct file *file, poll_table *wait) {
+    unsigned int mask = 0;
+    poll_wait(file, &cp_wait, wait);
+
+    if (cp_len > 0)
+        mask |= POLLIN | POLLRDNORM;
+
+    return mask;
+}
+
+long cp_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
+    long ret = 0;
+
+    if (mutex_lock_interruptible(&cp_lock))
+        return -EINTR;
+
+    switch (cmd) {
+        case CP_CLEAR_BUFFER:
+            kfree(cp_buf);
+            buffer_size = CHARPULSE_BUF;
+            cp_buf = kmalloc(buffer_size, GFP_KERNEL);
+            if (!cp_buf) { ret = -ENOMEM; break; }
+            memset(cp_buf, 0, buffer_size);
+            cp_len = 0;
+            buffer_capacity = buffer_size;
+            clear_count++;
+            wake_up_interruptible(&cp_wait);
+            break;
+
+        case CP_GET_STATS: {
+            struct cp_stats stats = {
+                .read_count = read_count,
+                .write_count = write_count,
+                .clear_count = clear_count,
+                .last_read_size = last_read_size,
+                .last_write_size = last_write_size,
+                .current_data_size = cp_len
+            };
+            if (copy_to_user((void __user *)arg, &stats, sizeof(stats)))
+                ret = -EFAULT;
+            break;
+        }
+
+        case CP_SET_MAX_SIZE: {
+            size_t new_size;
+            if (copy_from_user(&new_size, (size_t __user *)arg, sizeof(new_size))) {
+                ret = -EFAULT;
+                break;
+            }
+            if (new_size >= cp_len)
+                buffer_capacity = new_size;
+            else
+                ret = -EINVAL;
+            break;
+        }
+
+        case CP_GET_BUFFER_USAGE: {
+             char buf[16];
+             size_t len;
+             u64 usage_scaled;
+             u64 percent_int, percent_dec;
+
+             if (buffer_capacity == 0) {
+                percent_int = 0;
+                percent_dec = 0;
+             } else {
+                  usage_scaled = (u64)cp_len * 10000 / buffer_capacity;
+                  percent_int = usage_scaled / 100;
+                  percent_dec = usage_scaled % 100;
+             }
+
+
+             len = snprintf(buf, sizeof(buf), "%llu.%02llu", percent_int, percent_dec);
+
+             if (copy_to_user((char __user *)arg, buf, len + 1))
+                ret = -EFAULT;
+
+             break;
+        }
+
+
+        default:
+            ret = -ENOTTY;
+    }
+
+    mutex_unlock(&cp_lock);
+    return ret;
 }
 
 static ssize_t read_count_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
@@ -329,4 +422,4 @@ module_exit(cp_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sreeraj S Kurup");
-MODULE_DESCRIPTION("CharPulse character device driver with read, write, append, clear, dynamic buffer resizing, and sysfs stats support");
+MODULE_DESCRIPTION("CharPulse character device driver with read, write, append, clear, dynamic buffer resizing, and sysfs stats, poll support, and IOCTL interface for stats and buffer management");
