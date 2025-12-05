@@ -1,7 +1,7 @@
 # CharPulse
 **CharPulse** is a Linux character device driver that supports **read**, **write**, **append**, and **clear** operations on a **dynamically resizing kernel buffer**. It is safe for **multi-threaded access** and includes **logging for all operations via `dmesg`**.  
 This driver also provides **sysfs support** to monitor and manage buffer operations, including **read_count**, **write_count**, **clear_count**, **current_data_size**, **last_write_size**, **last_read_size**, **buffer_usage_percentage** and **reset_counts** to reset all counters.  
-It also supports **poll** to check if data is available and an **IOCTL interface** for getting stats, clearing the buffer, setting maximum buffer size, and checking buffer usage.  
+It also supports **poll** to check if data is available and an **IOCTL interface** for getting stats, clearing the buffer, checking buffer usage, and setting a maximum buffer size without affecting dynamic resizing. 
 This driver is **production-ready** and can handle **large amounts of data**, making it suitable for **learning** as well as **realistic kernel module experiments**.
 
 ---
@@ -27,7 +27,7 @@ This driver is **production-ready** and can handle **large amounts of data**,
   - `reset_counts` – write `1` to reset read, write, and clear counters
  
 - Supports **poll()** to check if data is available for reading.
-- Supports **IOCTL interface** to get stats, clear the buffer, set maximum buffer size, and check buffer usage.
+- Supports **IOCTL interface** to get stats, clear the buffer, check buffer usage, and set a maximum buffer size without affecting dynamic resizing.
 - Works on most Linux distributions with proper kernel headers.
 
 ---
@@ -170,6 +170,9 @@ To use the **IOCTL interface** of CharPulse from userspace, you need the `charpu
 #include "charpulse_user.h"
 ```
 This header defines all IOCTL commands and structures required to interact with the CharPulse device from userspace.
+
+**Note:** The `CP_SET_MAX_SIZE` IOCTL only updates the logical buffer capacity (`buffer_capacity`) used for usage calculations.  
+It does **not** change the actual allocated buffer or prevent dynamic resizing. Writes that exceed the current memory will still expand the buffer automatically
 
 **IOCTL Example Program:**
 ```c
