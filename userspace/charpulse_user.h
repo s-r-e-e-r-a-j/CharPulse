@@ -11,8 +11,7 @@
 
 #define CP_CLEAR_BUFFER        _IO(CHARPULSE_IOC_MAGIC, 1)
 #define CP_GET_STATS           _IOR(CHARPULSE_IOC_MAGIC, 2, struct cp_stats)
-#define CP_SET_MAX_SIZE        _IOW(CHARPULSE_IOC_MAGIC, 3, size_t)
-#define CP_GET_BUFFER_USAGE    _IOR(CHARPULSE_IOC_MAGIC, 4, char *)
+#define CP_GET_BUFFER_USAGE    _IOR(CHARPULSE_IOC_MAGIC, 3, char *)
 
 struct cp_stats {
     uint64_t read_count;
