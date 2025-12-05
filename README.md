@@ -1,7 +1,7 @@
 # CharPulse
 **CharPulse** is a Linux character device driver that supports **read**, **write**, **append**, and **clear** operations on a **dynamically resizing kernel buffer**. It is safe for **multi-threaded access** and includes **logging for all operations via `dmesg`**.  
 This driver also provides **sysfs support** to monitor and manage buffer operations, including **read_count**, **write_count**, **clear_count**, **current_data_size**, **last_write_size**, **last_read_size**, **buffer_usage_percentage** and **reset_counts** to reset all counters.  
-It also supports **poll** to check if data is available and an **IOCTL interface** for getting stats, clearing the buffer, checking buffer usage, and setting a maximum buffer size without affecting dynamic resizing. 
+It also supports **poll** to check if data is available and an **IOCTL interface** for getting stats, clearing the buffer, and checking buffer usage
 This driver is **production-ready** and can handle **large amounts of data**, making it suitable for **learning** as well as **realistic kernel module experiments**.
 
 ---
@@ -27,7 +27,7 @@ This driver is **production-ready** and can handle **large amounts of data**,
   - `reset_counts` – write `1` to reset read, write, and clear counters
  
 - Supports **poll()** to check if data is available for reading.
-- Supports **IOCTL interface** to get stats, clear the buffer, check buffer usage, and set a maximum buffer size without affecting dynamic resizing.
+- Supports **IOCTL interface** to get stats, clear the buffer, and check buffer usage
 - Works on most Linux distributions with proper kernel headers.
 
 ---
@@ -219,16 +219,6 @@ int main(void) {
         printf("Current buffer usage: %s%%\n", usage);
     } else {
         perror("CP_GET_BUFFER_USAGE failed");
-    }
-
-    // ------------------------------
-    // 3. Set a new maximum buffer size
-    // ------------------------------
-    size_t new_size = 2048; // new buffer max size in bytes
-    if (ioctl(fd, CP_SET_MAX_SIZE, &new_size) == 0) {
-        printf("Buffer maximum size successfully set to %zu bytes\n", new_size);
-    } else {
-        perror("CP_SET_MAX_SIZE failed");
     }
 
     // ------------------------------
