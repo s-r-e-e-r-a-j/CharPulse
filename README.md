@@ -245,12 +245,10 @@ int main(void) {
 
 ### Poll Usage
 
-**Poll Example Program**
+**Poll Example Program:**
 
 ```c
 // poll_example.c
-// Developer: Sreeraj
-// GitHub: https://github.com/s-r-e-e-r-a-j
 
 #include <stdio.h>
 #include <stdlib.h>
