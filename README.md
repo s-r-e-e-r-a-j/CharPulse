@@ -1,10 +1,8 @@
 # CharPulse
-
-**CharPulse** is a Linux character device driver that supports **read**, **write**, **append**, and **clear** operations on a **dynamically resizing kernel buffer**. It is safe for **multi-threaded access** and includes **logging for all operations via `dmesg`**.  
-
-This driver also provides **sysfs support** to monitor and manage buffer operations, including **read_count**, **write_count**, **clear_count**, **current_data_size**, **last_write_size**, **last_read_size**, **buffer_usage_percentage** and **reset_counts** to reset all counters.  
-
-This driver is **production-ready** and can handle **large amounts of data**, making it suitable for **learning** as well as **realistic kernel module experiments**.
+**CharPulse** is a Linux character device driver that supports **read**, **write**, **append**, and **clear** operations on a **dynamically resizing kernel buffer**. It is safe for **multi-threaded access** and includes **logging for all operations via `dmesg`**.  
+This driver also provides **sysfs support** to monitor and manage buffer operations, including **read_count**, **write_count**, **clear_count**, **current_data_size**, **last_write_size**, **last_read_size**, **buffer_usage_percentage** and **reset_counts** to reset all counters.  
+It also supports **poll** to check if data is available and an **IOCTL interface** for getting stats, clearing the buffer, setting maximum buffer size, and checking buffer usage.  
+This driver is **production-ready** and can handle **large amounts of data**, making it suitable for **learning** as well as **realistic kernel module experiments**.
 
 ---
 
@@ -27,6 +25,9 @@ This driver is **production-ready** and can handle **large amounts of data**, ma
   - `last_read_size` – size of the last read operation
   - `buffer_usage_percentage` – percentage of the buffer currently in use
   - `reset_counts` – write `1` to reset read, write, and clear counters
+ 
+- Supports **poll()** to check if data is available for reading.
+- Supports **IOCTL interface** to get stats, clear the buffer, set maximum buffer size, and check buffer usage.
 - Works on most Linux distributions with proper kernel headers.
 
 ---
