@@ -1,5 +1,5 @@
 # CharPulse
-**CharPulse** is a Linux character device driver that supports **read**, **write**, **append**, and **clear** operations on a **dynamically resizing kernel buffer**. It is safe for **multi-threaded access** and includes **logging for all operations via `dmesg`**.  
+**CharPulse** is a Linux character device driver that supports **read**, **write**, **append**, and **clear** operations on a **dynamically resizing kernel buffer** with a default size of up to **16 MB**, which can be expanded via **sysfs** and **IOCTL**. It is safe for **multi-threaded access** and includes **logging for all operations via `dmesg`**.  
 This driver also provides **sysfs support** to monitor and manage buffer operations, including **read_count**, **write_count**, **clear_count**, **current_data_size**, **last_write_size**, **last_read_size**, **buffer_usage_percentage**, **max_buffer_size** (read/write), and **reset_counts** to reset all counters.  
 It also supports **poll** to check if data is available and an **IOCTL interface** for getting stats, clearing the buffer, checking buffer usage, and setting/getting the maximum buffer size.
 This driver is **production-ready** and can handle **large amounts of data**, making it suitable for **learning** as well as **realistic kernel module experiments**.
@@ -24,7 +24,7 @@ This driver is **production-ready** and can handle **large amounts of data**,
   - `last_write_size` – size of the last write operation
   - `last_read_size` – size of the last read operation
   - `buffer_usage_percentage` – percentage of the buffer currently in use
-  - `max_buffer_size` – maximum size the buffer can grow to, shows the current maximum buffer size and allows setting a new maximum through sysfs
+  - `max_buffer_size` – maximum size the buffer can grow to, defaults to 16 MB, shows the current maximum buffer size, and allows setting a new maximum through sysfs
   - `reset_counts` – write `1` to reset read, write, and clear counters
  
 - Supports **poll()** to check if data is available for reading.
