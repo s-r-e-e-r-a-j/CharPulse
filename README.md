@@ -154,9 +154,9 @@ Get the current maximum buffer size:
 ```bash
 cat /sys/kernel/charpulse_stats/max_buffer_size
 ```
-Set a new maximum buffer size (e.g., 32 MB):
+Set a new maximum buffer size (e.g., 32 MB) (requires sudo/root):
 ```bash
-echo 33554432 > /sys/kernel/charpulse_stats/max_buffer_size
+sudo sh -c 'echo 33554432 > /sys/kernel/charpulse_stats/max_buffer_size'
 ```
 
 **Reset Counts**
