@@ -13,6 +13,7 @@ static char *cp_buf;
 static size_t cp_len = 0;
 static size_t buffer_size = CHARPULSE_BUF;
 static size_t buffer_capacity;
+static unsigned long max_buf_size = 16 * 1024 * 1024;  // Default 16MB
 static DEFINE_MUTEX(cp_lock);
 static DECLARE_WAIT_QUEUE_HEAD(cp_wait);
 
@@ -120,6 +121,11 @@ ssize_t cp_write(struct file *file, const char __user *in, size_t len, loff_t *o
 
     if (pos + len > buffer_size) {
         size_t new_size = max(buffer_size * 2, pos + len);
+        size_t required = pos + len;
+        if (required > max_buf_size) {
+           mutex_unlock(&cp_lock);
+           return -ENOSPC;
+        }
         char *new_buf = krealloc(cp_buf, new_size, GFP_KERNEL);
         if (!new_buf) {
            mutex_unlock(&cp_lock);
@@ -241,6 +247,35 @@ long cp_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
              break;
         }
 
+        case CP_SET_MAXBUF: {
+    
+             unsigned long new_value;
+
+             if (copy_from_user(&new_value, (unsigned long __user *)arg, sizeof(unsigned long))) {
+                ret = -EFAULT;
+                break;
+             }
+
+             if (new_value == 0) {
+                ret = -EINVAL;
+                break;
+             }
+
+             if (new_value < cp_len)
+                ret = -EINVAL;
+
+             max_buf_size = new_value;
+             break;
+
+        }
+
+        case CP_GET_MAXBUF: {
+
+             if (copy_to_user((unsigned long __user *)arg, &max_buf_size, sizeof(unsigned long))) {
+                ret = -EFAULT;
+             }
+             break;
+        }
 
         default:
             ret = -ENOTTY;
@@ -307,6 +342,27 @@ static ssize_t reset_counts_store(struct kobject *kobj, struct kobj_attribute *a
     return count;
 }
 
+static ssize_t max_buffer_size_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
+    return sprintf(buf, "%lu\n", max_buf_size);
+}
+
+static ssize_t max_buffer_size_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count) {
+
+     unsigned long new_value;
+
+    if (kstrtoul(buf, 10, &new_value) < 0)
+        return -EINVAL;
+
+    if (new_value == 0)
+        return -EINVAL;
+
+    if (new_value < cp_len)
+       return -EINVAL;
+
+    max_buf_size = new_value;
+    return count;
+}
+
 static struct kobj_attribute read_count_attr = __ATTR_RO(read_count);
 static struct kobj_attribute write_count_attr = __ATTR_RO(write_count);
 static struct kobj_attribute clear_count_attr = __ATTR_RO(clear_count);
@@ -315,6 +371,7 @@ static struct kobj_attribute last_write_size_attr = __ATTR_RO(last_write_size);
 static struct kobj_attribute last_read_size_attr  = __ATTR_RO(last_read_size);
 static struct kobj_attribute buffer_usage_percentage_attr = __ATTR_RO(buffer_usage_percentage);
 static struct kobj_attribute reset_counts_attr = __ATTR_WO(reset_counts);
+static struct kobj_attribute max_buffer_size_attr = __ATTR(max_buffer_size, 0664, max_buffer_size_show, max_buffer_size_store);
 
 static struct attribute *cp_attrs[] = {
     &read_count_attr.attr,
@@ -325,6 +382,7 @@ static struct attribute *cp_attrs[] = {
     &last_read_size_attr.attr,
     &buffer_usage_percentage_attr.attr,
     &reset_counts_attr.attr,
+    &max_buffer_size_attr.attr,
     NULL,
 };
 
